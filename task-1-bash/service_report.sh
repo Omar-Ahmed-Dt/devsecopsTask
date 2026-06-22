@@ -2,10 +2,7 @@
 set -euo pipefail
 
 trim() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
+    echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 # Check that inventory file path was provided as first argument
