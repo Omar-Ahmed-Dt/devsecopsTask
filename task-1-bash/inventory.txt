@@ -1,0 +1,8 @@
+name:environment:port:weight
+checkout-api:prod:8080:42
+search-svc:staging:9090:17
+legacy-cron:dev:7000:5
+notifications:prod::9
+billing-worker:prod:8081:
+metrics-agent:staging:70000:3
+cart-api:prod:8082:128
