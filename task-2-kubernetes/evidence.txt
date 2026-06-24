@@ -280,3 +280,73 @@ status:
     - ip: 10.43.162.110
 
 --------------------------------------------------------------------------------
+
+$ cat /etc/hosts
+...
+127.0.0.1 podinfo.local
+...
+
+$ curl -v -H "Host: podinfo.local" http://127.0.0.1/
+*   Trying 127.0.0.1:80...
+* Connected to 127.0.0.1 (127.0.0.1) port 80
+> GET / HTTP/1.1
+> Host: podinfo.local
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Date: Wed, 24 Jun 2026 19:39:09 GMT
+< Content-Type: application/json; charset=utf-8
+< Content-Length: 394
+< Connection: keep-alive
+< X-Content-Type-Options: nosniff
+< 
+{
+  "hostname": "podinfo-568cb8c7bc-d69ss",
+  "version": "6.14.0",
+  "revision": "a30fa3224289a3f3e413157104dee8844e329926",
+  "color": "#34577c",
+  "logo": "https://raw.githubusercontent.com/stefanprodan/podinfo/gh-pages/cuddle_clap.gif",
+  "message": "greetings from podinfo v6.14.0",
+  "goos": "linux",
+  "goarch": "amd64",
+  "runtime": "go1.26.4",
+  "num_goroutine": "8",
+  "num_cpu": "4"
+* Connection #0 to host 127.0.0.1 left intact
+}
+
+$ curl -v http://podinfo.local/
+* Host podinfo.local:80 was resolved.
+* IPv6: (none)
+* IPv4: 127.0.0.1
+*   Trying 127.0.0.1:80...
+* Connected to podinfo.local (127.0.0.1) port 80
+> GET / HTTP/1.1
+> Host: podinfo.local
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Date: Wed, 24 Jun 2026 19:39:21 GMT
+< Content-Type: application/json; charset=utf-8
+< Content-Length: 394
+< Connection: keep-alive
+< X-Content-Type-Options: nosniff
+< 
+{
+  "hostname": "podinfo-568cb8c7bc-t5cvl",
+  "version": "6.14.0",
+  "revision": "a30fa3224289a3f3e413157104dee8844e329926",
+  "color": "#34577c",
+  "logo": "https://raw.githubusercontent.com/stefanprodan/podinfo/gh-pages/cuddle_clap.gif",
+  "message": "greetings from podinfo v6.14.0",
+  "goos": "linux",
+  "goarch": "amd64",
+  "runtime": "go1.26.4",
+  "num_goroutine": "8",
+  "num_cpu": "4"
+* Connection #0 to host podinfo.local left intact
+}
+
+--------------------------------------------------------------------------------
