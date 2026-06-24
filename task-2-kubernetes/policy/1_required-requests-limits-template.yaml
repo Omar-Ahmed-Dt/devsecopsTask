@@ -1,0 +1,96 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredrequestslimits
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredRequestsLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties: {}
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredrequestslimits
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          missing_request(container, "cpu")
+          msg := sprintf("container <%s> is missing resources.requests.cpu", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          missing_request(container, "memory")
+          msg := sprintf("container <%s> is missing resources.requests.memory", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          missing_limit(container, "cpu")
+          msg := sprintf("container <%s> is missing resources.limits.cpu", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          missing_limit(container, "memory")
+          msg := sprintf("container <%s> is missing resources.limits.memory", [container.name])
+        }
+
+        containers[container] {
+          spec := pod_spec
+          container := spec.containers[_]
+        }
+
+        containers[container] {
+          spec := pod_spec
+          init_containers := object.get(spec, "initContainers", [])
+          container := init_containers[_]
+        }
+
+        pod_spec := input.review.object.spec {
+          input.review.kind.kind == "Pod"
+        }
+
+        pod_spec := input.review.object.spec.template.spec {
+          is_workload_with_template
+        }
+
+        pod_spec := input.review.object.spec.jobTemplate.spec.template.spec {
+          input.review.kind.kind == "CronJob"
+        }
+
+        is_workload_with_template {
+          input.review.kind.kind == "Deployment"
+        }
+
+        is_workload_with_template {
+          input.review.kind.kind == "StatefulSet"
+        }
+
+        is_workload_with_template {
+          input.review.kind.kind == "DaemonSet"
+        }
+
+        is_workload_with_template {
+          input.review.kind.kind == "ReplicaSet"
+        }
+
+        is_workload_with_template {
+          input.review.kind.kind == "Job"
+        }
+
+        missing_request(container, resource) {
+          resources := object.get(container, "resources", {})
+          requests := object.get(resources, "requests", {})
+          not requests[resource]
+        }
+
+        missing_limit(container, resource) {
+          resources := object.get(container, "resources", {})
+          limits := object.get(resources, "limits", {})
+          not limits[resource]
+        }

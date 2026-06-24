@@ -63,3 +63,47 @@ sudo ufw --force enable
 sudo ufw status verbose
 ```
 
+# Helm 
+## Remove default K3s Traefik
+```sh
+kubectl -n kube-system delete helmchart traefik --ignore-not-found
+kubectl -n kube-system delete deployment traefik --ignore-not-found
+kubectl -n kube-system delete service traefik --ignore-not-found
+kubectl -n kube-system delete pod -l app.kubernetes.io/name=traefik --ignore-not-found
+kubectl -n kube-system delete pod -l svccontroller.k3s.cattle.io/svcname=traefik --ignore-not-found
+```
+
+## Or Disable traefik, In k3s-server-install, add this flag to the K3s server install command:
+```sh
+--disable traefik
+```
+
+```sh
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm update repo
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.hostNetwork=true \
+  --set controller.dnsPolicy=ClusterFirstWithHostNet \
+  --set controller.kind=DaemonSet \
+  --set controller.service.type=ClusterIP \
+  --set controller.ingressClassResource.name=nginx \
+  --set controller.ingressClassResource.enabled=true \
+  --set controller.ingressClass=nginx \
+  --timeout 10m \
+  --wait
+```
+
+## Verify
+```sh
+kubectl get pods -n ingress-nginx -o wide
+kubectl get ingress -n shop
+```
+
+# Apply Objects and Verify
+```sh
+kubeclt apply -f manifests/
+```
+
+- Check Outputs [evidence](./evidence.txt) File
