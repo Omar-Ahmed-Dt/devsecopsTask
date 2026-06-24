@@ -1,14 +1,43 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-MASTER_IP="${MASTER_IP:-10.116.0.2}"
-NODE_NAME="${NODE_NAME:-k3s-master}"
-FLANNEL_IFACE="${FLANNEL_IFACE:-eth1}"
-DISABLE_UFW="${DISABLE_UFW:-true}"
-RESET_EXISTING="${RESET_EXISTING:-false}"
+# Required variables:
+# MASTER_IP
+# NODE_NAME
+# FLANNEL_IFACE
+# DISABLE_UFW=true|false
+# RESET_EXISTING=true|false
+
+require_var() {
+  local var_name="$1"
+
+  if [[ -z "${!var_name:-}" ]]; then
+    echo "ERROR: $var_name is required." >&2
+    exit 1
+  fi
+}
+
+require_bool() {
+  local var_name="$1"
+  local value="${!var_name}"
+
+  if [[ "$value" != "true" && "$value" != "false" ]]; then
+    echo "ERROR: $var_name must be true or false." >&2
+    exit 1
+  fi
+}
+
+require_var "MASTER_IP"
+require_var "NODE_NAME"
+require_var "FLANNEL_IFACE"
+require_var "DISABLE_UFW"
+require_var "RESET_EXISTING"
+
+require_bool "DISABLE_UFW"
+require_bool "RESET_EXISTING"
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Please run as root."
+  echo "ERROR: please run as root." >&2
   exit 1
 fi
 
@@ -37,7 +66,7 @@ if [[ "${RESET_EXISTING}" == "true" ]]; then
   ip link delete cni0 2>/dev/null || true
   ip link delete flannel.1 2>/dev/null || true
 else
-  echo "[5/8] Skipping reset. Set RESET_EXISTING=true to reinstall."
+  echo "[5/8] Skipping reset."
 fi
 
 if systemctl is-active --quiet k3s 2>/dev/null; then
@@ -64,10 +93,5 @@ export KUBECONFIG=/root/.kube/config
 kubectl get nodes -o wide
 
 echo
-echo "K3s master installed successfully."
-echo
-echo "Worker join token:"
-cat /var/lib/rancher/k3s/server/node-token
-echo
-echo "Use this on the worker:"
-echo "MASTER_IP=${MASTER_IP} K3S_TOKEN=\"$(cat /var/lib/rancher/k3s/server/node-token)\" bash install-k3s-worker.sh"
+echo "MASTER_IP=${MASTER_IP}"
+echo "K3S_TOKEN=$(cat /var/lib/rancher/k3s/server/node-token)"

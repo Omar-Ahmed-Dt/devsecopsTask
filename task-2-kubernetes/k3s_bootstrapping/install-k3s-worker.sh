@@ -1,26 +1,47 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-MASTER_IP="${MASTER_IP:-10.116.0.2}"
-WORKER_IP="${WORKER_IP:-10.116.0.3}"
-NODE_NAME="${NODE_NAME:-k3s-worker-1}"
-FLANNEL_IFACE="${FLANNEL_IFACE:-eth1}"
-DISABLE_UFW="${DISABLE_UFW:-true}"
-RESET_EXISTING="${RESET_EXISTING:-false}"
+# Required variables:
+# MASTER_IP
+# WORKER_IP
+# NODE_NAME
+# FLANNEL_IFACE
+# DISABLE_UFW=true|false
+# RESET_EXISTING=true|false
+# K3S_TOKEN
+
+require_var() {
+  local var_name="$1"
+
+  if [[ -z "${!var_name:-}" ]]; then
+    echo "ERROR: $var_name is required." >&2
+    exit 1
+  fi
+}
+
+require_bool() {
+  local var_name="$1"
+  local value="${!var_name}"
+
+  if [[ "$value" != "true" && "$value" != "false" ]]; then
+    echo "ERROR: $var_name must be true or false." >&2
+    exit 1
+  fi
+}
+
+require_var "MASTER_IP"
+require_var "WORKER_IP"
+require_var "NODE_NAME"
+require_var "FLANNEL_IFACE"
+require_var "DISABLE_UFW"
+require_var "RESET_EXISTING"
+require_var "K3S_TOKEN"
+
+require_bool "DISABLE_UFW"
+require_bool "RESET_EXISTING"
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Please run as root."
-  exit 1
-fi
-
-if [[ -z "${K3S_TOKEN:-}" ]]; then
-  echo "K3S_TOKEN is required."
-  echo
-  echo "Get it from the master:"
-  echo "cat /var/lib/rancher/k3s/server/node-token"
-  echo
-  echo "Then run:"
-  echo "K3S_TOKEN='TOKEN_HERE' ./install-k3s-worker.sh"
+  echo "ERROR: please run as root." >&2
   exit 1
 fi
 
@@ -49,13 +70,13 @@ if [[ "${RESET_EXISTING}" == "true" ]]; then
   ip link delete cni0 2>/dev/null || true
   ip link delete flannel.1 2>/dev/null || true
 else
-  echo "[5/8] Skipping reset. Set RESET_EXISTING=true to reinstall."
+  echo "[5/8] Skipping reset."
 fi
 
 echo "[6/8] Testing connection to master..."
 if ! curl -k --connect-timeout 5 "https://${MASTER_IP}:6443/ping" >/dev/null 2>&1; then
-  echo "Warning: cannot reach https://${MASTER_IP}:6443/ping yet."
-  echo "Check firewall, private networking, or master status."
+  echo "WARNING: cannot reach https://${MASTER_IP}:6443/ping yet." >&2
+  echo "WARNING: check firewall, private networking, or master status." >&2
 fi
 
 if systemctl is-active --quiet k3s-agent 2>/dev/null; then
@@ -76,5 +97,3 @@ systemctl status k3s-agent --no-pager
 
 echo
 echo "K3s worker install completed."
-echo "Check nodes from the master:"
-echo "kubectl get nodes -o wide"
