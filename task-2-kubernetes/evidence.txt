@@ -350,3 +350,15 @@ $ curl -v http://podinfo.local/
 }
 
 --------------------------------------------------------------------------------
+
+$ kubectl get pod redis-test-denied -n shop
+NAME                READY   STATUS    RESTARTS   AGE
+redis-test-denied   1/1     Running   0          5s
+
+$kubectl exec -n shop redis-test-denied -- sh -c \
+  'timeout 5 redis-cli -h redis.shop.svc.cluster.local -p 6379 ping || echo "DENIED or TIMEOUT"'
+DENIED or TIMEOUT
+Could not connect to Redis at redis.shop.svc.cluster.local:6379: Connection refused
+
+--------------------------------------------------------------------------------
+
