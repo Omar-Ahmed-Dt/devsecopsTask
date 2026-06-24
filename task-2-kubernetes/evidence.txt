@@ -1,0 +1,282 @@
+$ kubectl get nodes -o wide                                                          130
+NAME           STATUS   ROLES           AGE    VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k3s-master     Ready    control-plane   103m   v1.35.5+k3s1   10.116.0.2    <none>        Ubuntu 24.04.3 LTS   6.8.0-71-generic   containerd://2.2.3-k3s1
+k3s-worker-1   Ready    <none>          97m    v1.35.5+k3s1   10.116.0.3    <none>        Ubuntu 24.04.3 LTS   6.8.0-71-generic   containerd://2.2.3-k3s1
+
+--------------------------------------------------------------------------------
+
+$ kubectl get ns shop
+NAME   STATUS   AGE
+shop   Active   47m
+
+--------------------------------------------------------------------------------
+
+$ kubectl get all -n shop
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/podinfo-568cb8c7bc-d69ss   1/1     Running   0          41m
+pod/podinfo-568cb8c7bc-t5cvl   1/1     Running   0          41m
+pod/redis-6d774955d6-rdw9b     1/1     Running   0          43m
+
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+service/podinfo   ClusterIP   10.43.165.76    <none>        9898/TCP,9797/TCP   42m
+service/redis     ClusterIP   10.43.226.229   <none>        6379/TCP            42m
+
+NAME                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/podinfo   2/2     2            2           41m
+deployment.apps/redis     1/1     1            1           43m
+
+NAME                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/podinfo-568cb8c7bc   2         2         2       41m
+replicaset.apps/redis-6d774955d6     1         1         1       43m
+
+--------------------------------------------------------------------------------
+
+$ kubectl get pods,svc -n shop -o wide
+NAME                           READY   STATUS    RESTARTS   AGE   IP           NODE           NOMINATED NODE   READINESS GATES
+pod/podinfo-568cb8c7bc-d69ss   1/1     Running   0          41m   10.42.0.14   k3s-master     <none>           <none>
+pod/podinfo-568cb8c7bc-t5cvl   1/1     Running   0          41m   10.42.1.4    k3s-worker-1   <none>           <none>
+pod/redis-6d774955d6-rdw9b     1/1     Running   0          43m   10.42.1.3    k3s-worker-1   <none>           <none>
+
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE   SELECTOR
+service/podinfo   ClusterIP   10.43.165.76    <none>        9898/TCP,9797/TCP   42m   app.kubernetes.io/component=web,app.kubernetes.io/name=podinfo
+service/redis     ClusterIP   10.43.226.229   <none>        6379/TCP            42m   app.kubernetes.io/component=cache,app.kubernetes.io/name=redis
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+podinfo   2/2     2            2           41m
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o jsonpath='{.spec.replicas}{"\n"}'
+2
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy redis -n shop
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+redis   1/1     1            1           43m
+
+--------------------------------------------------------------------------------
+
+$ kubectl get pods -n shop -l app.kubernetes.io/name=redis -o wide
+NAME                     READY   STATUS    RESTARTS   AGE   IP          NODE           NOMINATED NODE   READINESS GATES
+redis-6d774955d6-rdw9b   1/1     Running   0          44m   10.42.1.3   k3s-worker-1   <none>           <none>
+
+--------------------------------------------------------------------------------
+
+$ kubectl logs deploy/redis -n shop --tail=50
+1:C 24 Jun 2026 18:01:45.265 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+1:C 24 Jun 2026 18:01:45.265 * Redis version=7.2.14, bits=64, commit=00000000, modified=0, pid=1, just started
+1:C 24 Jun 2026 18:01:45.265 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+1:M 24 Jun 2026 18:01:45.266 * monotonic clock: POSIX clock_gettime
+1:M 24 Jun 2026 18:01:45.267 * Running mode=standalone, port=6379.
+1:M 24 Jun 2026 18:01:45.273 * Server initialized
+1:M 24 Jun 2026 18:01:45.273 * Ready to accept connections tcp
+1:M 24 Jun 2026 18:28:23.979 * 100 changes in 300 seconds. Saving...
+1:M 24 Jun 2026 18:28:23.980 * Background saving started by pid 15
+15:C 24 Jun 2026 18:28:24.005 * DB saved on disk
+15:C 24 Jun 2026 18:28:24.006 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+1:M 24 Jun 2026 18:28:24.080 * Background saving terminated with success
+
+--------------------------------------------------------------------------------
+
+$ kubectl get svc redis -n shop -o wide
+NAME    TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+redis   ClusterIP   10.43.226.229   <none>        6379/TCP   43m   app.kubernetes.io/component=cache,app.kubernetes.io/name=redis
+
+--------------------------------------------------------------------------------
+
+$ kubectl get svc podinfo -n shop -o wide
+NAME      TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)             AGE   SELECTOR
+podinfo   ClusterIP   10.43.165.76   <none>        9898/TCP,9797/TCP   43m   app.kubernetes.io/component=web,app.kubernetes.io/name=podinfo
+
+--------------------------------------------------------------------------------
+
+$ kubectl get secret redis-connection -n shop -o jsonpath='{.data.PODINFO_CACHE_SERVER}{"\n"}'
+dGNwOi8vcmVkaXMuc2hvcC5zdmMuY2x1c3Rlci5sb2NhbDo2Mzc5
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o yaml | grep -A8 -B3 secretKeyRef
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"web","app.kubernetes.io/name":"podinfo","app.kubernetes.io/part-of":"shop"},"name":"podinfo","namespace":"shop"},"spec":{"replicas":2,"selector":{"matchLabels":{"app.kubernetes.io/component":"web","app.kubernetes.io/name":"podinfo"}},"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":1},"type":"RollingUpdate"},"template":{"metadata":{"annotations":{"prometheus.io/port":"9797","prometheus.io/scrape":"true"},"labels":{"app.kubernetes.io/component":"web","app.kubernetes.io/name":"podinfo","app.kubernetes.io/part-of":"shop"}},"spec":{"containers":[{"args":["--port=9898","--port-metrics=9797","--cache-server=$(PODINFO_CACHE_SERVER)","--level=info","--random-delay=false","--random-error=false"],"command":["./podinfo"],"env":[{"name":"PODINFO_CACHE_SERVER","valueFrom":{"secretKeyRef":{"key":"PODINFO_CACHE_SERVER","name":"redis-connection"}}}],"image":"ghcr.io/stefanprodan/podinfo:6.14.0","imagePullPolicy":"IfNotPresent","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/healthz","port":"http"},"initialDelaySeconds":10,"periodSeconds":20,"timeoutSeconds":3},"name":"podinfo","ports":[{"containerPort":9898,"name":"http","protocol":"TCP"},{"containerPort":9797,"name":"metrics","protocol":"TCP"}],"readinessProbe":{"failureThreshold":3,"httpGet":{"path":"/readyz","port":"http"},"initialDelaySeconds":5,"periodSeconds":10,"timeoutSeconds":3},"resources":{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}}]}}}}
+  creationTimestamp: "2026-06-24T18:03:51Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: web
+    app.kubernetes.io/name: podinfo
+    app.kubernetes.io/part-of: shop
+  name: podinfo
+  namespace: shop
+--
+        env:
+        - name: PODINFO_CACHE_SERVER
+          valueFrom:
+            secretKeyRef:
+              key: PODINFO_CACHE_SERVER
+              name: redis-connection
+        image: ghcr.io/stefanprodan/podinfo:6.14.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o yaml | grep -A10 "args:"
+      - args:
+        - --port=9898
+        - --port-metrics=9797
+        - --cache-server=$(PODINFO_CACHE_SERVER)
+        - --level=info
+        - --random-delay=false
+        - --random-error=false
+        command:
+        - ./podinfo
+        env:
+        - name: PODINFO_CACHE_SERVER
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o jsonpath='{.spec.template.spec.containers[0].resources}{"\n"}'
+{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o jsonpath='{.spec.template.spec.containers[0].livenessProbe}{"\n"}'
+{"failureThreshold":3,"httpGet":{"path":"/healthz","port":"http","scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":20,"successThreshold":1,"timeoutSeconds":3}
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy podinfo -n shop -o jsonpath='{.spec.template.spec.containers[0].readinessProbe}{"\n"}'
+{"failureThreshold":3,"httpGet":{"path":"/readyz","port":"http","scheme":"HTTP"},"initialDelaySeconds":5,"periodSeconds":10,"successThreshold":1,"timeoutSeconds":3}
+
+--------------------------------------------------------------------------------
+
+$ kubectl get deploy redis -n shop -o jsonpath='{.spec.template.spec.containers[0].livenessProbe}{"\n"}'
+{"failureThreshold":3,"initialDelaySeconds":10,"periodSeconds":20,"successThreshold":1,"tcpSocket":{"port":"redis"},"timeoutSeconds":2}
+
+--------------------------------------------------------------------------------
+
+$ kubectl get endpointslice -n shop
+NAME            ADDRESSTYPE   PORTS       ENDPOINTS              AGE
+podinfo-5b89v   IPv4          9797,9898   10.42.1.4,10.42.0.14   44m
+redis-wg77f     IPv4          6379        10.42.1.3              45m
+
+--------------------------------------------------------------------------------
+
+$ kubectl run curl-test -n shop \
+  --rm -i \
+  --restart=Never \
+  --image=curlimages/curl \
+  -- curl -s http://podinfo.shop.svc.cluster.local:9898/
+{
+  "hostname": "podinfo-568cb8c7bc-t5cvl",
+  "version": "6.14.0",
+  "revision": "a30fa3224289a3f3e413157104dee8844e329926",
+  "color": "#34577c",
+  "logo": "https://raw.githubusercontent.com/stefanprodan/podinfo/gh-pages/cuddle_clap.gif",
+  "message": "greetings from podinfo v6.14.0",
+  "goos": "linux",
+  "goarch": "amd64",
+  "runtime": "go1.26.4",
+  "num_goroutine": "8",
+  "num_cpu": "4"
+}pod "curl-test" deleted from shop namespace
+
+--------------------------------------------------------------------------------
+
+$ kubectl run curl-healthz -n shop \
+  --rm -i \
+  --restart=Never \
+  --image=curlimages/curl \
+  -- curl -s http://podinfo.shop.svc.cluster.local:9898/healthz
+{
+  "status": "OK"
+}pod "curl-healthz" deleted from shop namespace
+
+--------------------------------------------------------------------------------
+
+$ kubectl run curl-readyz -n shop \
+  --rm -i \
+  --restart=Never \
+  --image=curlimages/curl \
+  -- curl -s http://podinfo.shop.svc.cluster.local:9898/readyz
+{
+  "status": "OK"
+}
+
+--------------------------------------------------------------------------------
+
+$ kubectl get ingress -n shop -o wide
+NAME      CLASS   HOSTS           ADDRESS         PORTS   AGE
+podinfo   nginx   podinfo.local   10.43.162.110   80      9m54s
+
+--------------------------------------------------------------------------------
+
+$ kubectl describe ingress podinfo -n shop
+Name:             podinfo
+Labels:           app.kubernetes.io/component=web
+                  app.kubernetes.io/name=podinfo
+                  app.kubernetes.io/part-of=shop
+Namespace:        shop
+Address:          10.43.162.110
+Ingress Class:    nginx
+Default backend:  <default>
+Rules:
+  Host           Path  Backends
+  ----           ----  --------
+  podinfo.local
+                 /   podinfo:9898 (10.42.1.4:9898,10.42.0.14:9898)
+Annotations:     <none>
+Events:
+  Type    Reason  Age                    From                      Message
+  ----    ------  ----                   ----                      -------
+  Normal  Sync    10m                    nginx-ingress-controller  Scheduled for sync
+  Normal  Sync    10m                    nginx-ingress-controller  Scheduled for sync
+  Normal  Sync    8m44s (x2 over 9m41s)  nginx-ingress-controller  Scheduled for sync
+  Normal  Sync    8m44s (x2 over 9m17s)  nginx-ingress-controller  Scheduled for sync
+
+--------------------------------------------------------------------------------
+
+$ kubectl get ingress podinfo -n shop -o yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"web","app.kubernetes.io/name":"podinfo","app.kubernetes.io/part-of":"shop"},"name":"podinfo","namespace":"shop"},"spec":{"ingressClassName":"nginx","rules":[{"host":"podinfo.local","http":{"paths":[{"backend":{"service":{"name":"podinfo","port":{"number":9898}}},"path":"/","pathType":"Prefix"}]}}]}}
+  creationTimestamp: "2026-06-24T18:39:14Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: web
+    app.kubernetes.io/name: podinfo
+    app.kubernetes.io/part-of: shop
+  name: podinfo
+  namespace: shop
+  resourceVersion: "4026"
+  uid: 30510938-0e6c-43e9-9ab4-a10c97b4b201
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: podinfo.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: podinfo
+            port:
+              number: 9898
+        path: /
+        pathType: Prefix
+status:
+  loadBalancer:
+    ingress:
+    - ip: 10.43.162.110
+
+--------------------------------------------------------------------------------
