@@ -6,44 +6,60 @@
 
 ## Install K3s on the master node:
 ```sh
-cd task-2-kubernetes/k3s_bootstrapping/
+# Get a private ip
+ip add show
 
-sudo MASTER_IP="<master-private-ip>" \
+MASTER_IP="<Master Node Private IP>" \
     NODE_NAME="k3s-master" \
-    FLANNEL_IFACE="eth1" \
-    DISABLE_UFW="true" \ 
-    RESET_EXISTING="false" \ 
+    FLANNEL_IFACE="<Interface>" \
+    DISABLE_UFW="true" \
+    RESET_EXISTING="false" \
     ./k3s-server-install.sh
 
 ```
 
 ## Install K3s on the worker node:
 ```sh
-sudo MASTER_IP="<master-private-ip>" \
-    WORKER_IP="<worker-private-ip>" \
-    NODE_NAME="k3s-worker-1" \ 
-    FLANNEL_IFACE="eth1" \ 
-    DISABLE_UFW="true" \ 
-    RESET_EXISTING="false" \ 
-    K3S_TOKEN="<token-from-master>" \ 
+# Get a private ip
+ip add show
+
+MASTER_IP="<Master Node Private IP>" \
+    WORKER_IP="<Workder Noder Private IP>" \
+    NODE_NAME="k3s-worker-1" \
+    FLANNEL_IFACE="<Interface>" \
+    DISABLE_UFW="true" \
+    RESET_EXISTING="false" \
+    K3S_TOKEN="<token>" \
     ./k3s-agent-install.sh
 
 ```
 
 ## Verify the cluster from the master node:
 ```sh
+ssh -i ~/.ssh/<Private Key> <User>@<Public IP>
 kubectl get nodes -o wide
 ```
 
-
-## Access the Kubernetes API from local machine using SSH tunnel
+## Configure local kubeconfig: 
 ```sh
+mkdir -p ~/.kube/
+scp <User>@<Public ip>:~/.kube/config ~/.kube/config
+sed -i 's#server: https://10.116.0.2:6443#server: https://127.0.0.1:6443#' ~/.kube/config
+```
+
+## Access the Kubernetes API from local machine using SSH tunnel:
+```sh
+# Open an SSH tunnel from the local machine
 ssh -N -L 6443:127.0.0.1:6443 root@<k3s-master-public-ip>
 ```
 
-## Configure local kubeconfig
+## Apply API-Access Restrictions:
 ```sh
-mkdir -p ~/.kube/
-cp <From Master Node ~/.kube/config> <Localhost ~/.kube/config>
+# Allow from Master Node to API Server
+sudo ufw allow from "<Private ip for Master Node>/32" to any port 6443 proto tcp
+# Allow from LocalHost Using SSH Tunnel
+sudo ufw allow from "<Public ip for Local Machine>/32" to any port 22 proto tcp
+sudo ufw --force enable
+sudo ufw status verbose
 ```
 
