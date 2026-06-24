@@ -63,8 +63,16 @@ sudo ufw --force enable
 sudo ufw status verbose
 ```
 
-# Helm 
-## Remove default K3s Traefik
+# Install Nginx-Ingress Using Helm
+## Install Helm
+```sh
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+helm version
+```
+
+## Before Install Nginx-Ingress, Remove default K3s Traefik
 ```sh
 kubectl -n kube-system delete helmchart traefik --ignore-not-found
 kubectl -n kube-system delete deployment traefik --ignore-not-found
