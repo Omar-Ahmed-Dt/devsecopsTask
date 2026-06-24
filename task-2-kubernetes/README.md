@@ -107,3 +107,5 @@ kubeclt apply -f manifests/
 ```
 
 - Check Outputs [evidence](./evidence.txt) File
+- For the additional OPA Gatekeeper setup, see [OPA Gatekeeper Policy](./OPA_Gatekeeper_POLICY.md).
+
