@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: shop
+  labels:
+    app.kubernetes.io/name: podinfo
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: podinfo
+        app.kubernetes.io/component: web
+        app.kubernetes.io/part-of: shop
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9797"
+    spec:
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.14.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - ./podinfo
+          args:
+            - --port=9898
+            - --port-metrics=9797
+            - --cache-server=$(PODINFO_CACHE_SERVER)
+            - --level=info
+            - --random-delay=false
+            - --random-error=false
+          env:
+            - name: PODINFO_CACHE_SERVER
+              valueFrom:
+                secretKeyRef:
+                  name: redis-connection
+                  key: PODINFO_CACHE_SERVER
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+            - name: metrics
+              containerPort: 9797
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
