@@ -11,7 +11,7 @@ cd task-1-bash
 ```sh
 cd task-2-kubernetes
 ```
-- [K3s Boot, Two Tier App](./task-1-bash/README.md)
+- [K3s Boot, Two Tier App](./task-2-kubernetes/README.md)
 - Tools: Bash Script , K3s - Kubernetes , OPA GateKeeper Policy + Rego , Ingress Controller 
 
 ## Task 3 — CI/CD Pipeline (FastAPI + PostgreSQL)
