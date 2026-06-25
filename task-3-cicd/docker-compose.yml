@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: task3-postgres
     environment:
-      POSTGRES_DB: app_test
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app_test_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d app_test"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -23,7 +23,7 @@ services:
     image: task3-fastapi:${IMAGE_TAG}
     container_name: task3-fastapi
     environment:
-      DATABASE_URL: postgresql://app:app_test_password@db:5432/app_test
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
       - "9090:9090"
     depends_on:
