@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: task3-fastapi:local
+    image: task3-fastapi:${IMAGE_TAG}
     container_name: task3-fastapi
     environment:
       DATABASE_URL: postgresql://app:app_test_password@db:5432/app_test

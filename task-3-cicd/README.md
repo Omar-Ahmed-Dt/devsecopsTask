@@ -54,6 +54,7 @@ docker build -t task3-fastapi:$(git rev-parse --short HEAD)
 docker run --rm -p 9090:9090 task3-fastapi:$(git rev-parse --short HEAD)
 
 # Using Docker Compose 
+export IMAGE_TAG="$(git rev-parse --short HEAD)"
 docker-compose up --build
 
 # Check App Image
