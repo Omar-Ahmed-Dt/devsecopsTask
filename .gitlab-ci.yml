@@ -137,3 +137,64 @@ push_image:
       changes:
         - task-3-cicd/**/*
         - .gitlab-ci.yml
+
+deploy_staging:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:1.30
+  needs:
+    - job: push_image
+  script:
+    - echo "Deploying $REGISTRY_IMAGE to DigitalOcean Kubernetes staging"
+
+    # Load kubeconfig from GitLab variable
+    - echo "$KUBE_CONFIG_STAGING" | base64 -d > kubeconfig
+    - export KUBECONFIG="$PWD/kubeconfig"
+
+    # Create staging namespace
+    - kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+
+    # Create image pull secret for GitLab Container Registry
+    - >
+      kubectl -n staging create secret docker-registry gitlab-registry-secret
+      --docker-server="$CI_REGISTRY"
+      --docker-username="$CI_REGISTRY_USER"
+      --docker-password="$CI_REGISTRY_PASSWORD"
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # Create PostgreSQL secret
+    - >
+      kubectl -n staging create secret generic postgres-secret
+      --from-literal=POSTGRES_DB="$POSTGRES_DB"
+      --from-literal=POSTGRES_USER="$POSTGRES_USER"
+      --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # Create app DATABASE_URL secret
+    - >
+      kubectl -n staging create secret generic task3-fastapi-env
+      --from-literal=DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # Deploy PostgreSQL
+    - kubectl apply -f task-3-cicd/manifests/db-service.yaml
+    - kubectl apply -f task-3-cicd/manifests/db.yaml
+
+    # Deploy FastAPI app
+    - sed "s|__REGISTRY_IMAGE__|$REGISTRY_IMAGE|g" task-3-cicd/manifests/app.yaml | kubectl apply -f -
+    - kubectl apply -f task-3-cicd/manifests/app-service.yaml
+
+    # Verify rollout
+    - kubectl -n staging rollout status statefulset/postgres --timeout=180s
+    - kubectl -n staging rollout status deployment/task3-fastapi --timeout=180s
+
+    # Show deployed resources
+    - kubectl -n staging get pods
+    - kubectl -n staging get svc
+    - kubectl -n staging get pvc
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
