@@ -141,7 +141,7 @@ push_image:
 deploy_staging:
   stage: deploy
   image:
-    name: bitnami/kubectl:1.30
+    name: bitnami/kubectl:latest
   needs:
     - job: push_image
   script:
