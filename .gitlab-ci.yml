@@ -1,0 +1,139 @@
+stages:
+  - install
+  - test
+  - security
+  - build
+  - scan
+  - push
+  - deploy
+
+variables:
+  APP_DIR: "task-3-cicd"
+  # CI_PROJECT_DIR: devsecopsTask/
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+  IMAGE_NAME: "task3-fastapi:$CI_COMMIT_SHORT_SHA"
+  REGISTRY_IMAGE: "$CI_REGISTRY_IMAGE/task3-fastapi:$CI_COMMIT_SHORT_SHA"
+
+# keep that folder between jobs/runs
+cache:
+  paths:
+    - .cache/pip/
+
+install_dependencies:
+  stage: install
+  image: python:3.12-slim
+  script:
+    - cd "$APP_DIR"
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest httpx ruff bandit pip-audit
+    - pip freeze > pip-freeze.txt
+  artifacts:
+    paths:
+      - task-3-cicd/pip-freeze.txt
+    expire_in: 1 day
+  rules:
+    - changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
+
+unit_tests:
+  stage: test
+  image: python:3.12-slim
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_DB: app_test
+    POSTGRES_USER: app
+    POSTGRES_PASSWORD: app_test_password
+    DATABASE_URL: "postgresql://app:app_test_password@postgres:5432/app_test"
+  script:
+    - cd "$APP_DIR"
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest httpx
+    - mkdir -p reports
+    - PYTHONPATH="$PWD" pytest -v tests --junitxml=reports/junit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: task-3-cicd/reports/junit.xml
+    paths:
+      - task-3-cicd/reports/junit.xml
+  rules:
+    - changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
+
+lint_and_sast:
+  stage: security
+  image: python:3.12-slim
+  script:
+    - cd "$APP_DIR"
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install ruff bandit pip-audit
+    - ruff check .
+    - bandit -r app -lll -ii
+    - pip-audit -r requirements.txt
+  rules:
+    - changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
+
+build_image:
+  stage: build
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      alias: docker
+  script:
+    - docker build -t "$IMAGE_NAME" "$APP_DIR"
+    - docker save "$IMAGE_NAME" -o image.tar
+  artifacts:
+    paths:
+      - image.tar
+    expire_in: 1 day
+  rules:
+    - changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
+
+scan_image:
+  stage: scan
+  image:
+    name: aquasec/trivy:0.58.2
+    entrypoint: [""]
+  needs:
+    - job: build_image
+      artifacts: true
+  script:
+    - trivy image --input image.tar --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1
+  rules:
+    - changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
+
+push_image:
+  stage: push
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      alias: docker
+  needs:
+    - job: build_image
+      artifacts: true
+    - job: scan_image
+  script:
+    - docker load -i image.tar
+    - docker tag "$IMAGE_NAME" "$REGISTRY_IMAGE"
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+    - docker push "$REGISTRY_IMAGE"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - task-3-cicd/**/*
+        - .gitlab-ci.yml
