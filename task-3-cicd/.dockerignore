@@ -1,8 +1,37 @@
+# Python virtual environments
 .venv/
 venv/
+env/
+ENV/
+
+# Python cache files
 __pycache__/
-*.pyc
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and coverage output
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 reports/
-.git/
+
+# Local environment / secrets
 .env
+.env.*
+!.env.example
+
+# Git and editor files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+
+# Docker / temporary artifacts
+*.tar
+*.log
