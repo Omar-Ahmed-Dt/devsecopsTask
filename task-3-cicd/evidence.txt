@@ -1,0 +1,52 @@
+$ curl http://129.212.248.202/
+{"message":"Task 3 GitLab CI/CD sample app"}
+
+---------------------------------------------------
+
+$ curl http://129.212.248.202/healthz
+{"status":"ok"}
+
+---------------------------------------------------
+
+$ curl http://129.212.248.202/readyz
+{"status":"ready"}
+
+---------------------------------------------------
+
+$ curl http://129.212.248.202/db-check
+{"database":"ok","result":1}
+
+---------------------------------------------------
+
+$ kubectl get all -n staging
+NAME                                 READY   STATUS    RESTARTS   AGE
+pod/postgres-0                       1/1     Running   0          3m31s
+pod/task3-fastapi-78b69c95db-87hj6   1/1     Running   0          3m30s
+
+NAME                    TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)        AGE
+service/postgres        ClusterIP      None            <none>            5432/TCP       3m35s
+service/task3-fastapi   LoadBalancer   10.108.33.134   129.212.248.202   80:31579/TCP   3m29s
+
+NAME                            READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/task3-fastapi   1/1     1            1           3m32s
+
+NAME                                       DESIRED   CURRENT   READY   AGE
+replicaset.apps/task3-fastapi-78b69c95db   1         1         1       3m32s
+
+NAME                        READY   AGE
+statefulset.apps/postgres   1/1     3m34s
+
+---------------------------------------------------
+
+$ kubectl get pvc
+NAME                       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS       VOLUMEATTRIBUTESCLASS   AGE
+postgres-data-postgres-0   Bound    pvc-482c7c0f-0eca-4a8e-af24-4ec738ba182c   1Gi        RWO            do-block-storage   <unset>                 8m48s
+
+---------------------------------------------------
+
+$ kubectl get pv 
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                              STORAGECLASS       VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-482c7c0f-0eca-4a8e-af24-4ec738ba182c   1Gi        RWO            Delete           Bound    staging/postgres-data-postgres-0   do-block-storage   <unset>                          8m50s
+
+---------------------------------------------------
+
